@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 
 import '../../domain/entities/scenario.dart';
+import '../../domain/entities/session_result.dart';
 
 class SessionSummaryScreen extends StatelessWidget {
-  const SessionSummaryScreen({super.key, required this.scenario});
+  const SessionSummaryScreen({
+    super.key,
+    required this.scenario,
+    required this.result,
+  });
 
   final Scenario scenario;
+  final SessionResult result;
 
   @override
   Widget build(BuildContext context) {
@@ -28,16 +34,25 @@ class SessionSummaryScreen extends StatelessWidget {
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 24),
-          const Card(
+          Card(
             child: Padding(
-              padding: EdgeInsets.all(18),
+              padding: const EdgeInsets.all(18),
               child: Column(
                 children: [
-                  _SummaryRow(label: 'Practice time', value: '5 min'),
-                  Divider(height: 24),
-                  _SummaryRow(label: 'New words', value: '0'),
-                  Divider(height: 24),
-                  _SummaryRow(label: 'Corrections', value: '0'),
+                  _SummaryRow(
+                    label: 'Learner turns',
+                    value: '${result.turnCount}',
+                  ),
+                  const Divider(height: 24),
+                  _SummaryRow(
+                    label: 'Corrections',
+                    value: '${result.correctionCount}',
+                  ),
+                  const Divider(height: 24),
+                  _SummaryRow(
+                    label: 'Correction rate',
+                    value: '${(result.correctionRate * 100).round()}%',
+                  ),
                 ],
               ),
             ),
