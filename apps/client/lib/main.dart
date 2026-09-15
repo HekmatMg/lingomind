@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'application/state/app_state.dart';
 import 'application/use_cases/complete_session.dart';
@@ -13,16 +14,20 @@ import 'infrastructure/ai/demo_conversation_engine.dart';
 import 'infrastructure/ai/demo_error_detector.dart';
 import 'infrastructure/ai/demo_learning_brain.dart';
 import 'infrastructure/ai/demo_teaching_brain.dart';
-import 'infrastructure/storage/in_memory_learner_memory_repository.dart';
-import 'infrastructure/storage/in_memory_progress_repository.dart';
+import 'infrastructure/storage/shared_preferences_learner_memory_repository.dart';
+import 'infrastructure/storage/shared_preferences_progress_repository.dart';
 import 'presentation/screens/home_screen.dart';
 
-void main() {
-  runApp(const LingoMindApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final preferences = await SharedPreferences.getInstance();
+  runApp(LingoMindApp(preferences: preferences));
 }
 
 class LingoMindApp extends StatelessWidget {
-  const LingoMindApp({super.key});
+  const LingoMindApp({super.key, required this.preferences});
+
+  final SharedPreferences preferences;
 
   @override
   Widget build(BuildContext context) {
@@ -31,8 +36,10 @@ class LingoMindApp extends StatelessWidget {
     final ErrorDetector errorDetector = const DemoErrorDetector();
     final LearningBrain learningBrain = const DemoLearningBrain();
     final TeachingBrain teachingBrain = const DemoTeachingBrain();
-    final LearnerMemoryRepository memoryRepository = InMemoryLearnerMemoryRepository();
-    final ProgressRepository progressRepository = InMemoryProgressRepository();
+    final LearnerMemoryRepository memoryRepository =
+        SharedPreferencesLearnerMemoryRepository(preferences);
+    final ProgressRepository progressRepository =
+        SharedPreferencesProgressRepository(preferences);
     final recommended = RecommendNextScenario(learningBrain).execute(
       learner: appState.learner,
       memory: memoryRepository.load(),
