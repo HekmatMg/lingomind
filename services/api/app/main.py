@@ -15,7 +15,11 @@ from pydantic import BaseModel, Field
 
 APP_VERSION = "1.0.0"
 TOKEN_TTL_SECONDS = 60 * 60 * 24 * 7
-TOKEN_SECRET = os.getenv("LINGOMIND_TOKEN_SECRET", "development-only-change-me")
+ENVIRONMENT = os.getenv("LINGOMIND_ENV", "development").strip().lower()
+_configured_secret = os.getenv("LINGOMIND_TOKEN_SECRET")
+if ENVIRONMENT == "production" and (not _configured_secret or len(_configured_secret) < 32):
+    raise RuntimeError("LINGOMIND_TOKEN_SECRET must be set to a random value of at least 32 characters in production.")
+TOKEN_SECRET = _configured_secret or secrets.token_urlsafe(48)
 
 app = FastAPI(title="LingoMind API", version=APP_VERSION)
 app.add_middleware(
@@ -28,7 +32,7 @@ app.add_middleware(
 
 users: dict[str, dict[str, Any]] = {}
 sessions: dict[str, dict[str, Any]] = {}
-processed_turns: set[str] = set()
+processed_turns: dict[str, dict[str, Any]] = {}
 
 
 class RegisterRequest(BaseModel):
@@ -94,9 +98,10 @@ def _current_user(authorization: str | None) -> dict[str, Any]:
         if not hmac.compare_digest(signature, expected):
             raise ValueError
         payload = json.loads(raw)
-        if int(payload["exp"]) < int(time.time()):
+        user_id = payload["sub"]
+        if int(payload["exp"]) < int(time.time()) or user_id not in users:
             raise ValueError
-        return users[payload["sub"]]
+        return users[user_id]
     except (ValueError, KeyError, json.JSONDecodeError):
         raise HTTPException(status_code=401, detail={"code": "invalid_token", "message": "Invalid or expired token."}) from None
 
@@ -120,7 +125,15 @@ def register(payload: RegisterRequest):
     if email in (u["email"] for u in users.values()):
         raise HTTPException(status_code=409, detail={"code": "email_exists", "message": "An account already exists."})
     user_id = str(uuid.uuid4())
-    users[user_id] = {"id": user_id, "email": email, "name": payload.name.strip(), "password": _password_hash(payload.password), "level": "A2", "streak": 0, "sessions": []}
+    users[user_id] = {
+        "id": user_id,
+        "email": email,
+        "name": payload.name.strip(),
+        "password": _password_hash(payload.password),
+        "level": "A2",
+        "streak": 0,
+        "sessions": [],
+    }
     return UserProfile(id=user_id, email=email, name=users[user_id]["name"], level="A2", streak=0)
 
 
@@ -158,11 +171,11 @@ def add_turn(session_id: str, payload: TurnRequest, authorization: str | None = 
         raise HTTPException(status_code=409, detail={"code": "session_completed", "message": "Session is already completed."})
     key = f"{user['id']}:{session_id}:{idempotency_key}" if idempotency_key else None
     if key and key in processed_turns:
-        return session["turns"][-1]
+        return processed_turns[key]
     turn = {"turn": len(session["turns"]) + 1, "learner_text": payload.text.strip(), "teacher_text": "Tell me more about that."}
     session["turns"].append(turn)
     if key:
-        processed_turns.add(key)
+        processed_turns[key] = turn
     return turn
 
 
