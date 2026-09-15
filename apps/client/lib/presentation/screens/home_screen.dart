@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../application/state/app_state.dart';
 import '../../domain/services/conversation_engine.dart';
 import '../../domain/services/error_detector.dart';
+import '../../domain/services/teaching_brain.dart';
 import 'scenario_selection_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -11,38 +12,35 @@ class HomeScreen extends StatelessWidget {
     required this.state,
     required this.engine,
     required this.errorDetector,
+    required this.teachingBrain,
   });
 
   final AppState state;
   final ConversationEngine engine;
   final ErrorDetector errorDetector;
+  final TeachingBrain teachingBrain;
 
   void _openScenarios(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ScenarioSelectionScreen(
-          state: state,
-          engine: engine,
-          errorDetector: errorDetector,
-        ),
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => ScenarioSelectionScreen(
+        state: state,
+        engine: engine,
+        errorDetector: errorDetector,
+        teachingBrain: teachingBrain,
       ),
-    );
+    ));
   }
 
   @override
   Widget build(BuildContext context) {
     final learner = state.learner;
-    final featuredScenario = state.recommendedScenarios.first;
+    final featuredScenario = state.featuredScenario;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('LingoMind'),
         actions: [
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.person_outline),
-            tooltip: 'Profile',
-          ),
+          IconButton(onPressed: () {}, icon: const Icon(Icons.person_outline), tooltip: 'Profile'),
         ],
       ),
       body: ListView(
@@ -63,22 +61,19 @@ class HomeScreen extends StatelessWidget {
           Card(
             child: Padding(
               padding: const EdgeInsets.all(18),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(featuredScenario.title, style: Theme.of(context).textTheme.titleLarge),
-                  const SizedBox(height: 8),
-                  Text(featuredScenario.description),
-                  const SizedBox(height: 14),
-                  Row(children: [
-                    const Icon(Icons.timer_outlined, size: 18),
-                    const SizedBox(width: 6),
-                    Text('${featuredScenario.durationMinutes} min'),
-                    const Spacer(),
-                    FilledButton(onPressed: () => _openScenarios(context), child: const Text('Practice')),
-                  ]),
-                ],
-              ),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(featuredScenario.title, style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 8),
+                Text(featuredScenario.description),
+                const SizedBox(height: 14),
+                Row(children: [
+                  const Icon(Icons.timer_outlined, size: 18),
+                  const SizedBox(width: 6),
+                  Text('${featuredScenario.durationMinutes} min'),
+                  const Spacer(),
+                  FilledButton(onPressed: () => _openScenarios(context), child: const Text('Practice')),
+                ]),
+              ]),
             ),
           ),
           const SizedBox(height: 24),
@@ -87,7 +82,7 @@ class HomeScreen extends StatelessWidget {
             TextButton(onPressed: () => _openScenarios(context), child: const Text('See all')),
           ]),
           const SizedBox(height: 4),
-          ...state.recommendedScenarios.skip(1).map((scenario) => ListTile(
+          ...state.recommendedScenarios.where((s) => s.id != featuredScenario.id).map((scenario) => ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: const CircleAvatar(child: Icon(Icons.chat_bubble_outline)),
                 title: Text(scenario.title),
@@ -102,24 +97,18 @@ class HomeScreen extends StatelessWidget {
 
 class _StatCard extends StatelessWidget {
   const _StatCard({required this.icon, required this.label, required this.value});
-
   final IconData icon;
   final String label;
   final String value;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Icon(icon),
-          const SizedBox(height: 10),
-          Text(label),
-          const SizedBox(height: 2),
-          Text(value, style: Theme.of(context).textTheme.titleMedium),
-        ]),
-      ),
+    return Card(child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Icon(icon), const SizedBox(height: 10), Text(label), const SizedBox(height: 2),
+        Text(value, style: Theme.of(context).textTheme.titleMedium),
+      ]),
     );
   }
 }
