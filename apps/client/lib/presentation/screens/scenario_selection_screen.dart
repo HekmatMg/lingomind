@@ -2,12 +2,18 @@ import 'package:flutter/material.dart';
 
 import '../../application/state/app_state.dart';
 import '../../domain/entities/scenario.dart';
+import '../../domain/services/conversation_engine.dart';
 import 'conversation_screen.dart';
 
 class ScenarioSelectionScreen extends StatelessWidget {
-  const ScenarioSelectionScreen({super.key, required this.state});
+  const ScenarioSelectionScreen({
+    super.key,
+    required this.state,
+    required this.engine,
+  });
 
   final AppState state;
+  final ConversationEngine engine;
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +25,7 @@ class ScenarioSelectionScreen extends StatelessWidget {
         separatorBuilder: (_, __) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
           final scenario = state.recommendedScenarios[index];
-          return _ScenarioCard(scenario: scenario);
+          return _ScenarioCard(scenario: scenario, engine: engine);
         },
       ),
     );
@@ -27,9 +33,10 @@ class ScenarioSelectionScreen extends StatelessWidget {
 }
 
 class _ScenarioCard extends StatelessWidget {
-  const _ScenarioCard({required this.scenario});
+  const _ScenarioCard({required this.scenario, required this.engine});
 
   final Scenario scenario;
+  final ConversationEngine engine;
 
   @override
   Widget build(BuildContext context) {
@@ -63,7 +70,10 @@ class _ScenarioCard extends StatelessWidget {
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) => ConversationScreen(scenario: scenario),
+                        builder: (_) => ConversationScreen(
+                          scenario: scenario,
+                          engine: engine,
+                        ),
                       ),
                     );
                   },
