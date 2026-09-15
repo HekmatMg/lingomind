@@ -1,21 +1,166 @@
 import 'package:flutter/material.dart';
 
+import '../../application/state/app_state.dart';
+import 'scenario_selection_screen.dart';
+
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, required this.state});
+
+  final AppState state;
 
   @override
   Widget build(BuildContext context) {
+    final learner = state.learner;
+    final featuredScenario = state.recommendedScenarios.first;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('LingoMind'),
-      ),
-      body: const Center(
-        child: Text(
-          'Welcome to LingoMind',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
+        actions: [
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(Icons.person_outline),
+            tooltip: 'Profile',
           ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Text(
+            'Welcome back, ${learner.name}',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 6),
+          Text('Ready for a little English practice?'),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: _StatCard(
+                  icon: Icons.school_outlined,
+                  label: 'Level',
+                  value: learner.level,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _StatCard(
+                  icon: Icons.local_fire_department_outlined,
+                  label: 'Streak',
+                  value: '${learner.currentStreak} days',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Today\'s recommendation',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 10),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    featuredScenario.title,
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(featuredScenario.description),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      const Icon(Icons.timer_outlined, size: 18),
+                      const SizedBox(width: 6),
+                      Text('${featuredScenario.durationMinutes} min'),
+                      const Spacer(),
+                      FilledButton(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  ScenarioSelectionScreen(state: state),
+                            ),
+                          );
+                        },
+                        child: const Text('Practice'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Recommended for you',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => ScenarioSelectionScreen(state: state),
+                    ),
+                  );
+                },
+                child: const Text('See all'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          ...state.recommendedScenarios.skip(1).map(
+                (scenario) => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const CircleAvatar(
+                    child: Icon(Icons.chat_bubble_outline),
+                  ),
+                  title: Text(scenario.title),
+                  subtitle: Text('${scenario.level} • ${scenario.durationMinutes} min'),
+                ),
+              ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  const _StatCard({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon),
+            const SizedBox(height: 10),
+            Text(label),
+            const SizedBox(height: 2),
+            Text(
+              value,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ],
         ),
       ),
     );
