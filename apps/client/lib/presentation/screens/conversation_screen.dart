@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../application/state/conversation_controller.dart';
+import '../../domain/entities/conversation_message.dart';
 import '../../domain/entities/scenario.dart';
+import '../../infrastructure/ai/demo_conversation_engine.dart';
 import 'session_summary_screen.dart';
 
 class ConversationScreen extends StatefulWidget {
@@ -13,29 +16,51 @@ class ConversationScreen extends StatefulWidget {
 }
 
 class _ConversationScreenState extends State<ConversationScreen> {
-  final _controller = TextEditingController();
-  final _messages = <String>[
-    'Hi! I\'m your LingoMind teacher. Let\'s practice together.',
-  ];
+  late final ConversationController _controller;
+  final _textController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = ConversationController(
+      engine: const DemoConversationEngine(),
+    )..start(widget.scenario);
+    _controller.addListener(_onConversationChanged);
+  }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller
+      ..removeListener(_onConversationChanged)
+      ..dispose();
+    _textController.dispose();
     super.dispose();
   }
 
-  void _sendMessage() {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
+  void _onConversationChanged() {
+    if (mounted) setState(() {});
+  }
 
-    setState(() {
-      _messages.add(text);
-      _controller.clear();
-    });
+  void _sendMessage() {
+    final text = _textController.text;
+    if (text.trim().isEmpty) return;
+    _controller.sendLearnerMessage(text);
+    _textController.clear();
+  }
+
+  void _finishSession() {
+    _controller.finish();
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => SessionSummaryScreen(scenario: widget.scenario),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final state = _controller.state!;
+
     return Scaffold(
       appBar: AppBar(title: Text(widget.scenario.title)),
       body: Column(
@@ -43,37 +68,21 @@ class _ConversationScreenState extends State<ConversationScreen> {
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.all(20),
-              itemCount: _messages.length,
+              itemCount: state.messages.length,
               itemBuilder: (context, index) {
-                final isLearner = index > 0;
-                return Align(
-                  alignment:
-                      isLearner ? Alignment.centerRight : Alignment.centerLeft,
-                  child: Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.all(14),
-                    constraints: const BoxConstraints(maxWidth: 320),
-                    decoration: BoxDecoration(
-                      color: isLearner
-                          ? Theme.of(context).colorScheme.primaryContainer
-                          : Theme.of(context).colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text(_messages[index]),
-                  ),
-                );
+                return _MessageBubble(message: state.messages[index]);
               },
             ),
           ),
           SafeArea(
             top: false,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
               child: Row(
                 children: [
                   Expanded(
                     child: TextField(
-                      controller: _controller,
+                      controller: _textController,
                       textInputAction: TextInputAction.send,
                       onSubmitted: (_) => _sendMessage(),
                       decoration: const InputDecoration(
@@ -93,19 +102,43 @@ class _ConversationScreenState extends State<ConversationScreen> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: OutlinedButton(
-              onPressed: () {
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(
-                    builder: (_) => SessionSummaryScreen(scenario: widget.scenario),
-                  ),
-                );
-              },
-              child: const Text('Finish session'),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: _finishSession,
+                child: const Text('Finish session'),
+              ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _MessageBubble extends StatelessWidget {
+  const _MessageBubble({required this.message});
+
+  final ConversationMessage message;
+
+  @override
+  Widget build(BuildContext context) {
+    final isLearner = message.role == ConversationRole.learner;
+
+    return Align(
+      alignment: isLearner ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(14),
+        constraints: const BoxConstraints(maxWidth: 320),
+        decoration: BoxDecoration(
+          color: isLearner
+              ? Theme.of(context).colorScheme.primaryContainer
+              : Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(message.text),
       ),
     );
   }
