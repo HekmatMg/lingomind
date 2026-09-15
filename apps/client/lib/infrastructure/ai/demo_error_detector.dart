@@ -13,7 +13,7 @@ class DemoErrorDetector implements ErrorDetector {
       return ErrorCorrection(
         originalText: text,
         explanation: 'کارت خوب بود، ولی به‌جای goed باید بگی went.',
-        correctedText: text.replaceFirst(RegExp(r'(?i)goed'), 'went'),
+        correctedText: text.replaceFirst(RegExp(r'goed', caseSensitive: false), 'went'),
       );
     }
 
@@ -21,7 +21,7 @@ class DemoErrorDetector implements ErrorDetector {
       return ErrorCorrection(
         originalText: text,
         explanation: 'برای he در زمان حال ساده، فعل go باید به goes تبدیل شود.',
-        correctedText: text.replaceFirst(RegExp(r'(?i)he go'), 'He goes'),
+        correctedText: text.replaceFirst(RegExp(r'he go', caseSensitive: false), 'He goes'),
       );
     }
 
