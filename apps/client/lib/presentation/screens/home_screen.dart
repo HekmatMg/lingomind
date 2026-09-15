@@ -1,12 +1,29 @@
 import 'package:flutter/material.dart';
 
 import '../../application/state/app_state.dart';
+import '../../domain/services/conversation_engine.dart';
 import 'scenario_selection_screen.dart';
 
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key, required this.state});
+  const HomeScreen({
+    super.key,
+    required this.state,
+    required this.engine,
+  });
 
   final AppState state;
+  final ConversationEngine engine;
+
+  void _openScenarios(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ScenarioSelectionScreen(
+          state: state,
+          engine: engine,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +49,7 @@ class HomeScreen extends StatelessWidget {
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           const SizedBox(height: 6),
-          Text('Ready for a little English practice?'),
+          const Text('Ready for a little English practice?'),
           const SizedBox(height: 20),
           Row(
             children: [
@@ -79,14 +96,7 @@ class HomeScreen extends StatelessWidget {
                       Text('${featuredScenario.durationMinutes} min'),
                       const Spacer(),
                       FilledButton(
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  ScenarioSelectionScreen(state: state),
-                            ),
-                          );
-                        },
+                        onPressed: () => _openScenarios(context),
                         child: const Text('Practice'),
                       ),
                     ],
@@ -105,13 +115,7 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
               TextButton(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => ScenarioSelectionScreen(state: state),
-                    ),
-                  );
-                },
+                onPressed: () => _openScenarios(context),
                 child: const Text('See all'),
               ),
             ],
@@ -124,7 +128,10 @@ class HomeScreen extends StatelessWidget {
                     child: Icon(Icons.chat_bubble_outline),
                   ),
                   title: Text(scenario.title),
-                  subtitle: Text('${scenario.level} • ${scenario.durationMinutes} min'),
+                  subtitle: Text(
+                    '${scenario.level} • ${scenario.durationMinutes} min',
+                  ),
+                  onTap: () => _openScenarios(context),
                 ),
               ),
         ],
