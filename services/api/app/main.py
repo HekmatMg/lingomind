@@ -11,9 +11,9 @@ from typing import Any
 
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.1.0"
 TOKEN_TTL_SECONDS = 60 * 60 * 24 * 7
 ENVIRONMENT = os.getenv("LINGOMIND_ENV", "development").strip().lower()
 _configured_secret = os.getenv("LINGOMIND_TOKEN_SECRET")
@@ -24,7 +24,7 @@ TOKEN_SECRET = _configured_secret or secrets.token_urlsafe(48)
 app = FastAPI(title="LingoMind API", version=APP_VERSION)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("LINGOMIND_ALLOWED_ORIGINS", "http://localhost:3000").split(","),
+    allow_origins=[origin.strip() for origin in os.getenv("LINGOMIND_ALLOWED_ORIGINS", "http://localhost:3000").split(",") if origin.strip()],
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "X-Request-ID"],
@@ -33,16 +33,17 @@ app.add_middleware(
 users: dict[str, dict[str, Any]] = {}
 sessions: dict[str, dict[str, Any]] = {}
 processed_turns: dict[str, dict[str, Any]] = {}
+revoked_tokens: set[str] = set()
 
 
 class RegisterRequest(BaseModel):
-    email: str = Field(min_length=5, max_length=254)
+    email: EmailStr
     password: str = Field(min_length=10, max_length=128)
     name: str = Field(min_length=1, max_length=80)
 
 
 class LoginRequest(BaseModel):
-    email: str = Field(min_length=5, max_length=254)
+    email: EmailStr
     password: str = Field(min_length=1, max_length=128)
 
 
@@ -80,7 +81,7 @@ def _password_ok(password: str, stored: str) -> bool:
 
 
 def _token(user_id: str) -> str:
-    payload = {"sub": user_id, "exp": int(time.time()) + TOKEN_TTL_SECONDS}
+    payload = {"sub": user_id, "jti": str(uuid.uuid4()), "exp": int(time.time()) + TOKEN_TTL_SECONDS}
     raw = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode()
     encoded = raw.hex()
     signature = hmac.new(TOKEN_SECRET.encode(), raw, hashlib.sha256).hexdigest()
@@ -90,7 +91,7 @@ def _token(user_id: str) -> str:
 def _current_user(authorization: str | None) -> dict[str, Any]:
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail={"code": "unauthenticated", "message": "Authentication required."})
-    token = authorization[7:]
+    token = authorization[7:].strip()
     try:
         encoded, signature = token.split(".", 1)
         raw = bytes.fromhex(encoded)
@@ -99,11 +100,29 @@ def _current_user(authorization: str | None) -> dict[str, Any]:
             raise ValueError
         payload = json.loads(raw)
         user_id = payload["sub"]
+        jti = payload["jti"]
+        if not isinstance(jti, str) or jti in revoked_tokens:
+            raise ValueError
         if int(payload["exp"]) < int(time.time()) or user_id not in users:
             raise ValueError
         return users[user_id]
-    except (ValueError, KeyError, json.JSONDecodeError):
+    except (ValueError, KeyError, TypeError, json.JSONDecodeError):
         raise HTTPException(status_code=401, detail={"code": "invalid_token", "message": "Invalid or expired token."}) from None
+
+
+def _token_jti(authorization: str | None) -> str:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail={"code": "unauthenticated", "message": "Authentication required."})
+    try:
+        encoded, signature = authorization[7:].strip().split(".", 1)
+        raw = bytes.fromhex(encoded)
+        expected = hmac.new(TOKEN_SECRET.encode(), raw, hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(signature, expected):
+            raise ValueError
+        payload = json.loads(raw)
+        return str(payload["jti"])
+    except (ValueError, KeyError, TypeError, json.JSONDecodeError):
+        raise HTTPException(status_code=401, detail={"code": "invalid_token", "message": "Invalid token."}) from None
 
 
 @app.middleware("http")
@@ -121,29 +140,28 @@ def health() -> dict[str, str]:
 
 @app.post("/v1/auth/register", response_model=UserProfile)
 def register(payload: RegisterRequest):
-    email = payload.email.strip().lower()
+    email = str(payload.email).strip().lower()
     if email in (u["email"] for u in users.values()):
         raise HTTPException(status_code=409, detail={"code": "email_exists", "message": "An account already exists."})
     user_id = str(uuid.uuid4())
-    users[user_id] = {
-        "id": user_id,
-        "email": email,
-        "name": payload.name.strip(),
-        "password": _password_hash(payload.password),
-        "level": "A2",
-        "streak": 0,
-        "sessions": [],
-    }
+    users[user_id] = {"id": user_id, "email": email, "name": payload.name.strip(), "password": _password_hash(payload.password), "level": "A2", "streak": 0, "sessions": []}
     return UserProfile(id=user_id, email=email, name=users[user_id]["name"], level="A2", streak=0)
 
 
 @app.post("/v1/auth/login")
 def login(payload: LoginRequest):
-    email = payload.email.strip().lower()
+    email = str(payload.email).strip().lower()
     user = next((u for u in users.values() if u["email"] == email), None)
     if not user or not _password_ok(payload.password, user["password"]):
         raise HTTPException(status_code=401, detail={"code": "invalid_credentials", "message": "Email or password is incorrect."})
     return {"access_token": _token(user["id"]), "token_type": "Bearer", "expires_in": TOKEN_TTL_SECONDS}
+
+
+@app.post("/v1/auth/logout")
+def logout(authorization: str | None = Header(default=None)):
+    _current_user(authorization)
+    revoked_tokens.add(_token_jti(authorization))
+    return {"logged_out": True}
 
 
 @app.get("/v1/me", response_model=UserProfile)
@@ -168,7 +186,7 @@ def add_turn(session_id: str, payload: TurnRequest, authorization: str | None = 
     if not session or session["user_id"] != user["id"]:
         raise HTTPException(status_code=404, detail={"code": "session_not_found", "message": "Session not found."})
     if session["completed"]:
-        raise HTTPException(status_code=409, detail={"code": "session_completed", "message": "Session is already completed."})
+        raise HTTPException(status_code=409, detail={"code": "session_completed", "message": "Session is already complete."})
     key = f"{user['id']}:{session_id}:{idempotency_key}" if idempotency_key else None
     if key and key in processed_turns:
         return processed_turns[key]
