@@ -4,6 +4,7 @@ import '../../application/state/conversation_controller.dart';
 import '../../domain/entities/conversation_message.dart';
 import '../../domain/entities/scenario.dart';
 import '../../domain/services/conversation_engine.dart';
+import '../../domain/services/error_detector.dart';
 import 'session_summary_screen.dart';
 
 class ConversationScreen extends StatefulWidget {
@@ -11,10 +12,12 @@ class ConversationScreen extends StatefulWidget {
     super.key,
     required this.scenario,
     required this.engine,
+    required this.errorDetector,
   });
 
   final Scenario scenario;
   final ConversationEngine engine;
+  final ErrorDetector errorDetector;
 
   @override
   State<ConversationScreen> createState() => _ConversationScreenState();
@@ -27,7 +30,10 @@ class _ConversationScreenState extends State<ConversationScreen> {
   @override
   void initState() {
     super.initState();
-    _controller = ConversationController(engine: widget.engine)..start(widget.scenario);
+    _controller = ConversationController(
+      engine: widget.engine,
+      errorDetector: widget.errorDetector,
+    )..start(widget.scenario);
     _controller.addListener(_onConversationChanged);
   }
 
@@ -72,10 +78,14 @@ class _ConversationScreenState extends State<ConversationScreen> {
             child: ListView.builder(
               padding: const EdgeInsets.all(20),
               itemCount: state.messages.length,
-              itemBuilder: (context, index) =>
-                  _MessageBubble(message: state.messages[index]),
+              itemBuilder: (context, index) => _MessageBubble(message: state.messages[index]),
             ),
           ),
+          if (state.corrections.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: _CorrectionCard(correction: state.corrections.last),
+            ),
           SafeArea(
             top: false,
             child: Padding(
@@ -94,11 +104,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  IconButton.filled(
-                    onPressed: _sendMessage,
-                    icon: const Icon(Icons.send),
-                    tooltip: 'Send',
-                  ),
+                  IconButton.filled(onPressed: _sendMessage, icon: const Icon(Icons.send), tooltip: 'Send'),
                 ],
               ),
             ),
@@ -107,13 +113,35 @@ class _ConversationScreenState extends State<ConversationScreen> {
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: SizedBox(
               width: double.infinity,
-              child: OutlinedButton(
-                onPressed: _finishSession,
-                child: const Text('Finish session'),
-              ),
+              child: OutlinedButton(onPressed: _finishSession, child: const Text('Finish session')),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _CorrectionCard extends StatelessWidget {
+  const _CorrectionCard({required this.correction});
+
+  final dynamic correction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Correction', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 6),
+            Text(correction.explanation),
+            const SizedBox(height: 4),
+            Text(correction.correctedText, style: const TextStyle(fontWeight: FontWeight.w600)),
+          ],
+        ),
       ),
     );
   }
