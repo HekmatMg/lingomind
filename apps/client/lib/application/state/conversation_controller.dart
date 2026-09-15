@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../domain/entities/conversation_message.dart';
 import '../../domain/entities/scenario.dart';
+import '../../domain/entities/session_result.dart';
 import '../../domain/services/conversation_engine.dart';
 import '../../domain/services/error_detector.dart';
 import 'conversation_state.dart';
@@ -18,6 +19,18 @@ class ConversationController extends ChangeNotifier {
   ConversationState? _state;
 
   ConversationState? get state => _state;
+
+  SessionResult? get sessionResult {
+    final current = _state;
+    if (current == null) return null;
+
+    return SessionResult(
+      scenarioId: current.scenario.id,
+      turnCount: current.learnerTurnCount,
+      correctionCount: current.corrections.length,
+      completed: current.isFinished,
+    );
+  }
 
   void start(Scenario scenario) {
     final opening = _engine.createOpeningMessage(scenario);
