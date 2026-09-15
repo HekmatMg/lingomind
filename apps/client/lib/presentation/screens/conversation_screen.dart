@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../application/state/conversation_controller.dart';
 import '../../domain/entities/conversation_message.dart';
+import '../../domain/entities/error_correction.dart';
 import '../../domain/entities/scenario.dart';
 import '../../domain/services/conversation_engine.dart';
 import '../../domain/services/error_detector.dart';
@@ -125,7 +126,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
 class _CorrectionCard extends StatelessWidget {
   const _CorrectionCard({required this.correction});
 
-  final dynamic correction;
+  final ErrorCorrection correction;
 
   @override
   Widget build(BuildContext context) {
