@@ -5,7 +5,7 @@ import 'progress_state.dart';
 class ProgressController {
   ProgressController({required ProgressRepository repository})
       : _repository = repository,
-        _state = ProgressState(sessions: repository.loadSessions());
+        _state = repository.load();
 
   final ProgressRepository _repository;
   ProgressState _state;
@@ -13,7 +13,7 @@ class ProgressController {
   ProgressState get state => _state;
 
   void recordSession(SessionResult result) {
-    _repository.saveSession(result);
+    _repository.recordSession(result);
     _state = _state.addSession(result);
   }
 }
