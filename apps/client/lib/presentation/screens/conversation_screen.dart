@@ -3,13 +3,18 @@ import 'package:flutter/material.dart';
 import '../../application/state/conversation_controller.dart';
 import '../../domain/entities/conversation_message.dart';
 import '../../domain/entities/scenario.dart';
-import '../../infrastructure/ai/demo_conversation_engine.dart';
+import '../../domain/services/conversation_engine.dart';
 import 'session_summary_screen.dart';
 
 class ConversationScreen extends StatefulWidget {
-  const ConversationScreen({super.key, required this.scenario});
+  const ConversationScreen({
+    super.key,
+    required this.scenario,
+    required this.engine,
+  });
 
   final Scenario scenario;
+  final ConversationEngine engine;
 
   @override
   State<ConversationScreen> createState() => _ConversationScreenState();
@@ -22,9 +27,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
   @override
   void initState() {
     super.initState();
-    _controller = ConversationController(
-      engine: const DemoConversationEngine(),
-    )..start(widget.scenario);
+    _controller = ConversationController(engine: widget.engine)..start(widget.scenario);
     _controller.addListener(_onConversationChanged);
   }
 
@@ -69,9 +72,8 @@ class _ConversationScreenState extends State<ConversationScreen> {
             child: ListView.builder(
               padding: const EdgeInsets.all(20),
               itemCount: state.messages.length,
-              itemBuilder: (context, index) {
-                return _MessageBubble(message: state.messages[index]);
-              },
+              itemBuilder: (context, index) =>
+                  _MessageBubble(message: state.messages[index]),
             ),
           ),
           SafeArea(
