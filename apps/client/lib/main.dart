@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'application/state/app_state.dart';
 import 'presentation/screens/home_screen.dart';
 
 void main() {
@@ -11,13 +12,16 @@ class LingoMindApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final appState = AppState.demo();
+
     return MaterialApp(
       title: 'LingoMind',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
+        colorSchemeSeed: Colors.deepPurple,
       ),
-      home: const HomeScreen(),
+      home: HomeScreen(state: appState),
     );
   }
 }
