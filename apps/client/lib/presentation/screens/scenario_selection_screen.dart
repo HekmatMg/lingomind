@@ -4,6 +4,7 @@ import '../../application/state/app_state.dart';
 import '../../domain/entities/scenario.dart';
 import '../../domain/services/conversation_engine.dart';
 import '../../domain/services/error_detector.dart';
+import '../../domain/services/teaching_brain.dart';
 import 'conversation_screen.dart';
 
 class ScenarioSelectionScreen extends StatelessWidget {
@@ -12,11 +13,13 @@ class ScenarioSelectionScreen extends StatelessWidget {
     required this.state,
     required this.engine,
     required this.errorDetector,
+    required this.teachingBrain,
   });
 
   final AppState state;
   final ConversationEngine engine;
   final ErrorDetector errorDetector;
+  final TeachingBrain teachingBrain;
 
   @override
   Widget build(BuildContext context) {
@@ -30,8 +33,10 @@ class ScenarioSelectionScreen extends StatelessWidget {
           final scenario = state.recommendedScenarios[index];
           return _ScenarioCard(
             scenario: scenario,
+            learnerLevel: state.learner.level,
             engine: engine,
             errorDetector: errorDetector,
+            teachingBrain: teachingBrain,
           );
         },
       ),
@@ -42,13 +47,17 @@ class ScenarioSelectionScreen extends StatelessWidget {
 class _ScenarioCard extends StatelessWidget {
   const _ScenarioCard({
     required this.scenario,
+    required this.learnerLevel,
     required this.engine,
     required this.errorDetector,
+    required this.teachingBrain,
   });
 
   final Scenario scenario;
+  final String learnerLevel;
   final ConversationEngine engine;
   final ErrorDetector errorDetector;
+  final TeachingBrain teachingBrain;
 
   @override
   Widget build(BuildContext context) {
@@ -75,6 +84,8 @@ class _ScenarioCard extends StatelessWidget {
                     scenario: scenario,
                     engine: engine,
                     errorDetector: errorDetector,
+                    teachingBrain: teachingBrain,
+                    learnerLevel: learnerLevel,
                   ),
                 ));
               },
