@@ -60,9 +60,15 @@ class _ConversationScreenState extends State<ConversationScreen> {
 
   void _finishSession() {
     _controller.finish();
+    final result = _controller.sessionResult;
+    if (result == null) return;
+
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (_) => SessionSummaryScreen(scenario: widget.scenario),
+        builder: (_) => SessionSummaryScreen(
+          scenario: widget.scenario,
+          result: result,
+        ),
       ),
     );
   }
