@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import 'application/state/app_state.dart';
 import 'domain/services/conversation_engine.dart';
+import 'domain/services/error_detector.dart';
 import 'infrastructure/ai/demo_conversation_engine.dart';
+import 'infrastructure/ai/demo_error_detector.dart';
 import 'presentation/screens/home_screen.dart';
 
 void main() {
@@ -17,6 +19,7 @@ class LingoMindApp extends StatelessWidget {
     final appState = AppState.demo();
     final ConversationEngine conversationEngine =
         const DemoConversationEngine();
+    final ErrorDetector errorDetector = const DemoErrorDetector();
 
     return MaterialApp(
       title: 'LingoMind',
@@ -28,6 +31,7 @@ class LingoMindApp extends StatelessWidget {
       home: HomeScreen(
         state: appState,
         engine: conversationEngine,
+        errorDetector: errorDetector,
       ),
     );
   }
