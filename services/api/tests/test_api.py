@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from app.main import app
+from app.main import app, revoked_tokens, users
 
 client = TestClient(app)
 
@@ -38,6 +38,28 @@ def test_register_login_and_session_flow():
     completed = client.post(f'/v1/sessions/{session_id}/complete', headers=headers)
     assert completed.status_code == 200
     assert completed.json()['completed'] is True
+
+
+def test_logout_revokes_token():
+    email = 'logout-' + __import__('uuid').uuid4().hex + '@example.com'
+    client.post('/v1/auth/register', json={'email': email, 'password': 'correct-horse-battery', 'name': 'Logout Learner'})
+    login = client.post('/v1/auth/login', json={'email': email, 'password': 'correct-horse-battery'})
+    token = login.json()['access_token']
+    headers = {'Authorization': f'Bearer {token}'}
+
+    logout = client.post('/v1/auth/logout', headers=headers)
+    assert logout.status_code == 200
+    assert client.get('/v1/me', headers=headers).status_code == 401
+
+
+def test_invalid_email_is_rejected():
+    response = client.post('/v1/auth/register', json={'email': 'not-an-email', 'password': 'correct-horse-battery', 'name': 'Test'})
+    assert response.status_code == 422
+
+
+def test_short_password_is_rejected():
+    response = client.post('/v1/auth/register', json={'email': 'short@example.com', 'password': 'short', 'name': 'Test'})
+    assert response.status_code == 422
 
 
 def test_unauthenticated_access_is_rejected():
